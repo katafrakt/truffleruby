@@ -20,6 +20,7 @@ import org.truffleruby.RubyLanguage;
 import org.truffleruby.RubyContext;
 import org.truffleruby.core.InterruptMode;
 import org.truffleruby.core.fiber.FiberManager;
+import org.truffleruby.core.fiber.FiberManagerFactory;
 import org.truffleruby.core.fiber.FiberManagerThreadImpl;
 import org.truffleruby.core.string.StringUtils;
 import org.truffleruby.language.NotProvided;
@@ -162,7 +163,7 @@ public class ThreadManager {
 
     private void setFiberManager(DynamicObject thread) {
         // Because it is cyclic
-        Layouts.THREAD.setFiberManagerUnsafe(thread, new FiberManagerThreadImpl(context, thread));
+        Layouts.THREAD.setFiberManagerUnsafe(thread, FiberManagerFactory.create(context, thread));
     }
 
     private Object[] packThreadFields(DynamicObject currentGroup, String info) {
