@@ -55,6 +55,7 @@ import org.truffleruby.builtins.Primitive;
 import org.truffleruby.builtins.PrimitiveArrayArgumentsNode;
 import org.truffleruby.core.basicobject.BasicObjectNodes.ReferenceEqualNode;
 import org.truffleruby.core.cast.NameToJavaStringNode;
+import org.truffleruby.core.fiber.FiberManager;
 import org.truffleruby.core.fiber.FiberManagerThreadImpl;
 import org.truffleruby.core.kernel.KernelNodes;
 import org.truffleruby.core.kernel.KernelNodesFactory;
@@ -282,7 +283,7 @@ public abstract class VMPrimitiveNodes {
                 }
 
                 final DynamicObject rootThread = context.getThreadManager().getRootThread();
-                final FiberManagerThreadImpl fiberManager = Layouts.THREAD.getFiberManager(rootThread);
+                final FiberManager fiberManager = Layouts.THREAD.getFiberManager(rootThread);
 
                 // Workaround: we need to register with Truffle (which means going multithreaded),
                 // so that NFI can get its context to call pthread_kill() (GR-7405).

@@ -42,9 +42,7 @@ import com.oracle.truffle.api.source.SourceSection;
 /**
  * Manages Ruby {@code Fiber} objects for a given Ruby thread.
  */
-public class FiberManagerThreadImpl {
-
-    public static final String NAME_PREFIX = "Ruby Fiber";
+public class FiberManagerThreadImpl implements FiberManager {
 
     private final RubyContext context;
     private final DynamicObject rootFiber;
@@ -65,10 +63,12 @@ public class FiberManagerThreadImpl {
         return Collections.newSetFromMap(new ConcurrentHashMap<DynamicObject, Boolean>());
     }
 
+    @Override
     public DynamicObject getRootFiber() {
         return rootFiber;
     }
 
+    @Override
     public DynamicObject getCurrentFiber() {
         assert Layouts.THREAD.getFiberManager(context.getThreadManager().getCurrentThread()) == this :
             "Trying to read the current Fiber of another Thread which is inherently racy";
@@ -78,10 +78,12 @@ public class FiberManagerThreadImpl {
     // If the currentFiber is read from another Ruby Thread,
     // there is no guarantee that fiber will remain the current one
     // as it could switch to another Fiber before the actual operation on the returned fiber.
+    @Override
     public DynamicObject getCurrentFiberRacy() {
         return currentFiber;
     }
 
+    @Override
     @TruffleBoundary
     public DynamicObject getRubyFiberFromCurrentJavaThread() {
         return rubyFiber.get();
@@ -96,6 +98,7 @@ public class FiberManagerThreadImpl {
         return createFiber(context, thread, context.getCoreLibrary().getFiberFactory(), "root Fiber for Thread");
     }
 
+    @Override
     public DynamicObject createFiber(RubyContext context, DynamicObject thread, DynamicObjectFactory factory, String name) {
         assert RubyGuards.isRubyThread(thread);
         CompilerAsserts.partialEvaluationConstant(context);
@@ -117,10 +120,11 @@ public class FiberManagerThreadImpl {
     }
 
     @TruffleBoundary
-    private static LinkedBlockingQueue<FiberMessage> newMessageQueue() {
+    private static LinkedBlockingQueue<FiberManager.FiberMessage> newMessageQueue() {
         return new LinkedBlockingQueue<>();
     }
 
+    @Override
     public void initialize(DynamicObject fiber, DynamicObject block, Node currentNode) {
         context.getThreadManager().spawnFiber(() -> fiberMain(context, fiber, block, currentNode));
 
@@ -180,6 +184,7 @@ public class FiberManagerThreadImpl {
         addToMessageQueue(getReturnFiber(fiber, currentNode, UNPROFILED), new FiberExceptionMessage(exception));
     }
 
+    @Override
     public DynamicObject getReturnFiber(DynamicObject currentFiber, Node currentNode, BranchProfile errorProfile) {
         assert currentFiber == this.currentFiber;
 
@@ -198,7 +203,7 @@ public class FiberManagerThreadImpl {
     }
 
     @TruffleBoundary
-    private void addToMessageQueue(DynamicObject fiber, FiberMessage message) {
+    private void addToMessageQueue(DynamicObject fiber, FiberManager.FiberMessage message) {
         Layouts.FIBER.getMessageQueue(fiber).add(message);
     }
 
@@ -210,7 +215,7 @@ public class FiberManagerThreadImpl {
     private Object[] waitForResume(DynamicObject fiber) {
         assert RubyGuards.isRubyFiber(fiber);
 
-        final FiberMessage message = context.getThreadManager().runUntilResultKeepStatus(null,
+        final FiberManager.FiberMessage message = context.getThreadManager().runUntilResultKeepStatus(null,
                 () -> Layouts.FIBER.getMessageQueue(fiber).take());
 
         setCurrentFiber(fiber);
@@ -240,11 +245,13 @@ public class FiberManagerThreadImpl {
         addToMessageQueue(fiber, new FiberResumeMessage(operation, fromFiber, args));
     }
 
+    @Override
     public Object[] transferControlTo(DynamicObject fromFiber, DynamicObject fiber, FiberOperation operation, Object[] args) {
         resume(fromFiber, fiber, operation, args);
         return waitForResume(fromFiber);
     }
 
+    @Override
     public void start(DynamicObject fiber, Thread javaThread) {
         final ThreadManager threadManager = context.getThreadManager();
 
@@ -270,6 +277,7 @@ public class FiberManagerThreadImpl {
         Layouts.FIBER.getInitializedLatch(fiber).countDown();
     }
 
+    @Override
     public void cleanup(DynamicObject fiber, Thread javaThread) {
         Layouts.FIBER.setAlive(fiber, false);
 
@@ -291,6 +299,7 @@ public class FiberManagerThreadImpl {
         Layouts.FIBER.getFinishedLatch(fiber).countDown();
     }
 
+    @Override
     @TruffleBoundary
     public void killOtherFibers() {
         // All Fibers except the current one are in waitForResume(),
@@ -310,12 +319,14 @@ public class FiberManagerThreadImpl {
         }
     }
 
+    @Override
     @TruffleBoundary
     public void shutdown(Thread javaThread) {
         killOtherFibers();
         cleanup(rootFiber, javaThread);
     }
 
+    @Override
     public String getFiberDebugInfo() {
         final StringBuilder builder = new StringBuilder();
 
@@ -350,10 +361,7 @@ public class FiberManagerThreadImpl {
         }
     }
 
-    public interface FiberMessage {
-    }
-
-    private static class FiberResumeMessage implements FiberMessage {
+    private static class FiberResumeMessage implements FiberManager.FiberMessage {
 
         private final FiberOperation operation;
         private final DynamicObject sendingFiber;
@@ -387,10 +395,10 @@ public class FiberManagerThreadImpl {
         private static final long serialVersionUID = 1522270454305076317L;
     }
 
-    private static class FiberShutdownMessage implements FiberMessage {
+    private static class FiberShutdownMessage implements FiberManager.FiberMessage {
     }
 
-    private static class FiberExceptionMessage implements FiberMessage {
+    private static class FiberExceptionMessage implements FiberManager.FiberMessage {
 
         private final RuntimeException exception;
 

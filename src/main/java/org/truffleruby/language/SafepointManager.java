@@ -21,7 +21,7 @@ import org.truffleruby.Layouts;
 import org.truffleruby.RubyLanguage;
 import org.truffleruby.RubyContext;
 import org.truffleruby.core.InterruptMode;
-import org.truffleruby.core.fiber.FiberManagerThreadImpl;
+import org.truffleruby.core.fiber.FiberManager;
 import org.truffleruby.platform.Signals;
 
 import java.util.Arrays;
@@ -271,7 +271,7 @@ public class SafepointManager {
     @TruffleBoundary
     public void pauseRubyThreadAndExecute(DynamicObject rubyThread, Node currentNode, SafepointAction action) {
         final DynamicObject currentThread = context.getThreadManager().getCurrentThread();
-        final FiberManagerThreadImpl fiberManager = Layouts.THREAD.getFiberManager(rubyThread);
+        final FiberManager fiberManager = Layouts.THREAD.getFiberManager(rubyThread);
 
         if (currentThread == rubyThread) {
             if (fiberManager.getRubyFiberFromCurrentJavaThread() != fiberManager.getCurrentFiber()) {
@@ -322,7 +322,7 @@ public class SafepointManager {
         final Thread[] threads = new Thread[Thread.activeCount() + 1024];
         final int threadsCount = Thread.enumerate(threads);
         final long appearRunning = Arrays.stream(threads).limit(threadsCount).filter(
-                t -> t.getName().startsWith(FiberManagerThreadImpl.NAME_PREFIX)).count();
+                t -> t.getName().startsWith(FiberManager.NAME_PREFIX)).count();
         return String.format("safepoints: %d known threads, %d registered with phaser, %d arrived, %d appear to be running",
                 runningThreads.size(), phaser.getRegisteredParties(), phaser.getArrivedParties(), appearRunning);
     }
