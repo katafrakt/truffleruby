@@ -8,12 +8,19 @@ public class FiberManagerFactory {
     private static final boolean USE_CONTINUATIONS;
 
     static {
-        USE_CONTINUATIONS = false;
+        boolean tmp;
+        try {
+            Class.forName("java.lang.Continuation");
+            tmp = true;
+        } catch (ClassNotFoundException e) {
+            tmp = false;
+        }
+        USE_CONTINUATIONS = tmp;
     }
 
     public static FiberManager create(RubyContext context, DynamicObject rubyThread) {
         if (USE_CONTINUATIONS) {
-            throw new Error("Continuations not done yet.");
+            return new FiberManagerContinuationImpl(context, rubyThread);
         } else {
             return new FiberManagerThreadImpl(context, rubyThread);
         }

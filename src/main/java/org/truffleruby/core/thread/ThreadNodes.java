@@ -422,7 +422,7 @@ public abstract class ThreadNodes {
         public DynamicObject wakeup(DynamicObject rubyThread,
                                     @Cached("new()") YieldNode yieldNode) {
             final DynamicObject currentFiber = Layouts.THREAD.getFiberManager(rubyThread).getCurrentFiberRacy();
-            final Thread thread = Layouts.FIBER.getThread(currentFiber);
+            final Thread thread = (Thread) Layouts.FIBER.getThread(currentFiber);
             if (thread == null) {
                 throw new RaiseException(getContext(), coreExceptions().threadErrorKilledThread(this));
             }

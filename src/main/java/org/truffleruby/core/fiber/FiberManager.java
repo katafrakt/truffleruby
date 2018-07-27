@@ -1,8 +1,9 @@
 package org.truffleruby.core.fiber;
 
 import org.truffleruby.RubyContext;
+import org.truffleruby.language.RubyGuards;
+import org.truffleruby.language.control.TerminationException;
 
-import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
 import com.oracle.truffle.api.nodes.Node;
 import com.oracle.truffle.api.object.DynamicObject;
 import com.oracle.truffle.api.object.DynamicObjectFactory;
@@ -11,6 +12,57 @@ import com.oracle.truffle.api.profiles.BranchProfile;
 public interface FiberManager {
 
     interface FiberMessage {
+    }
+
+    class FiberResumeMessage implements FiberMessage {
+    
+        private final FiberOperation operation;
+        private final DynamicObject sendingFiber;
+        private final Object[] args;
+    
+        public FiberResumeMessage(FiberOperation operation, DynamicObject sendingFiber, Object[] args) {
+            assert RubyGuards.isRubyFiber(sendingFiber);
+            this.operation = operation;
+            this.sendingFiber = sendingFiber;
+            this.args = args;
+        }
+    
+        public FiberOperation getOperation() {
+            return operation;
+        }
+    
+        public DynamicObject getSendingFiber() {
+            return sendingFiber;
+        }
+    
+        public Object[] getArgs() {
+            return args;
+        }
+    
+    }
+
+    /**
+     * Used to cleanup and terminate Fibers when the parent Thread dies.
+     */
+    class FiberShutdownException extends TerminationException {
+        private static final long serialVersionUID = 1522270454305076317L;
+    }
+
+    class FiberShutdownMessage implements FiberMessage {
+    }
+
+    class FiberExceptionMessage implements FiberMessage {
+    
+        private final RuntimeException exception;
+    
+        public FiberExceptionMessage(RuntimeException exception) {
+            this.exception = exception;
+        }
+    
+        public RuntimeException getException() {
+            return exception;
+        }
+    
     }
 
     String NAME_PREFIX = "Ruby Fiber";

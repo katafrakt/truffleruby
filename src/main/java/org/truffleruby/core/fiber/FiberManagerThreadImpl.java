@@ -28,7 +28,6 @@ import org.truffleruby.language.control.ExitException;
 import org.truffleruby.language.control.KillException;
 import org.truffleruby.language.control.RaiseException;
 import org.truffleruby.language.control.ReturnException;
-import org.truffleruby.language.control.TerminationException;
 import org.truffleruby.language.objects.ObjectIDOperations;
 
 import com.oracle.truffle.api.CompilerAsserts;
@@ -70,8 +69,7 @@ public class FiberManagerThreadImpl implements FiberManager {
 
     @Override
     public DynamicObject getCurrentFiber() {
-        assert Layouts.THREAD.getFiberManager(context.getThreadManager().getCurrentThread()) == this :
-            "Trying to read the current Fiber of another Thread which is inherently racy";
+        assert Layouts.THREAD.getFiberManager(context.getThreadManager().getCurrentThread()) == this : "Trying to read the current Fiber of another Thread which is inherently racy";
         return currentFiber;
     }
 
@@ -95,7 +93,9 @@ public class FiberManagerThreadImpl implements FiberManager {
     }
 
     private DynamicObject createRootFiber(RubyContext context, DynamicObject thread) {
-        return createFiber(context, thread, context.getCoreLibrary().getFiberFactory(), "root Fiber for Thread");
+        final DynamicObject fiber = createFiber(context, thread, context.getCoreLibrary().getFiberFactory(), "root Fiber for Thread");
+        Layouts.FIBER.getInitializedLatch(fiber).countDown();
+        return fiber;
     }
 
     @Override
@@ -168,7 +168,7 @@ public class FiberManagerThreadImpl implements FiberManager {
         } catch (KillException | ExitException | RaiseException e) {
             // Propagate the exception until it reaches the root Fiber
             sendExceptionToParentFiber(fiber, e, currentNode);
-        } catch (FiberShutdownException e) {
+        } catch (FiberManager.FiberShutdownException e) {
             // Ends execution of the Fiber
         } catch (BreakException e) {
             sendExceptionToParentFiber(fiber, new RaiseException(context, context.getCoreExceptions().breakFromProcClosure(currentNode)), currentNode);
@@ -181,7 +181,7 @@ public class FiberManagerThreadImpl implements FiberManager {
     }
 
     private void sendExceptionToParentFiber(DynamicObject fiber, RuntimeException exception, Node currentNode) {
-        addToMessageQueue(getReturnFiber(fiber, currentNode, UNPROFILED), new FiberExceptionMessage(exception));
+        addToMessageQueue(getReturnFiber(fiber, currentNode, UNPROFILED), new FiberManager.FiberExceptionMessage(exception));
     }
 
     @Override
@@ -220,12 +220,12 @@ public class FiberManagerThreadImpl implements FiberManager {
 
         setCurrentFiber(fiber);
 
-        if (message instanceof FiberShutdownMessage) {
-            throw new FiberShutdownException();
-        } else if (message instanceof FiberExceptionMessage) {
-            throw ((FiberExceptionMessage) message).getException();
-        } else if (message instanceof FiberResumeMessage) {
-            final FiberResumeMessage resumeMessage = (FiberResumeMessage) message;
+        if (message instanceof FiberManager.FiberShutdownMessage) {
+            throw new FiberManager.FiberShutdownException();
+        } else if (message instanceof FiberManager.FiberExceptionMessage) {
+            throw ((FiberManager.FiberExceptionMessage) message).getException();
+        } else if (message instanceof FiberManager.FiberResumeMessage) {
+            final FiberManager.FiberResumeMessage resumeMessage = (FiberManager.FiberResumeMessage) message;
             assert context.getThreadManager().getCurrentThread() == Layouts.FIBER.getRubyThread(resumeMessage.getSendingFiber());
             if (resumeMessage.getOperation() == FiberOperation.RESUME) {
                 Layouts.FIBER.setLastResumedByFiber(fiber, resumeMessage.getSendingFiber());
@@ -242,7 +242,7 @@ public class FiberManagerThreadImpl implements FiberManager {
      * be received.
      */
     private void resume(DynamicObject fromFiber, DynamicObject fiber, FiberOperation operation, Object... args) {
-        addToMessageQueue(fiber, new FiberResumeMessage(operation, fromFiber, args));
+        addToMessageQueue(fiber, new FiberManager.FiberResumeMessage(operation, fromFiber, args));
     }
 
     @Override
@@ -307,7 +307,7 @@ public class FiberManagerThreadImpl implements FiberManager {
         // This also avoids the performance cost of a safepoint.
         for (DynamicObject fiber : runningFibers) {
             if (fiber != rootFiber) {
-                addToMessageQueue(fiber, new FiberShutdownMessage());
+                addToMessageQueue(fiber, new FiberManager.FiberShutdownMessage());
 
                 // Wait for the Fiber to finish so we only run one Fiber at a time
                 final CountDownLatch finishedLatch = Layouts.FIBER.getFinishedLatch(fiber);
@@ -335,7 +335,7 @@ public class FiberManagerThreadImpl implements FiberManager {
             builder.append(ObjectIDOperations.verySlowGetObjectID(context, fiber));
             builder.append(" #");
 
-            final Thread thread = Layouts.FIBER.getThread(fiber);
+            final Thread thread = (Thread) Layouts.FIBER.getThread(fiber);
 
             if (thread == null) {
                 builder.append("(no Java thread)");
@@ -359,57 +359,6 @@ public class FiberManagerThreadImpl implements FiberManager {
         } else {
             return builder.toString();
         }
-    }
-
-    private static class FiberResumeMessage implements FiberManager.FiberMessage {
-
-        private final FiberOperation operation;
-        private final DynamicObject sendingFiber;
-        private final Object[] args;
-
-        public FiberResumeMessage(FiberOperation operation, DynamicObject sendingFiber, Object[] args) {
-            assert RubyGuards.isRubyFiber(sendingFiber);
-            this.operation = operation;
-            this.sendingFiber = sendingFiber;
-            this.args = args;
-        }
-
-        public FiberOperation getOperation() {
-            return operation;
-        }
-
-        public DynamicObject getSendingFiber() {
-            return sendingFiber;
-        }
-
-        public Object[] getArgs() {
-            return args;
-        }
-
-    }
-
-    /**
-     * Used to cleanup and terminate Fibers when the parent Thread dies.
-     */
-    private static class FiberShutdownException extends TerminationException {
-        private static final long serialVersionUID = 1522270454305076317L;
-    }
-
-    private static class FiberShutdownMessage implements FiberManager.FiberMessage {
-    }
-
-    private static class FiberExceptionMessage implements FiberManager.FiberMessage {
-
-        private final RuntimeException exception;
-
-        public FiberExceptionMessage(RuntimeException exception) {
-            this.exception = exception;
-        }
-
-        public RuntimeException getException() {
-            return exception;
-        }
-
     }
 
 }
