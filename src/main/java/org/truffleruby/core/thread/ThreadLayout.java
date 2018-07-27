@@ -17,7 +17,7 @@ import com.oracle.truffle.api.object.dsl.Nullable;
 import com.oracle.truffle.api.object.dsl.Volatile;
 import org.truffleruby.core.InterruptMode;
 import org.truffleruby.core.basicobject.BasicObjectLayout;
-import org.truffleruby.core.fiber.FiberManager;
+import org.truffleruby.core.fiber.FiberManagerThreadImpl;
 
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -36,7 +36,7 @@ public interface ThreadLayout extends BasicObjectLayout {
             @Volatile InterruptMode interruptMode, // needs to be volatile for fibers implemented by threads
             @Volatile ThreadStatus status,
             List<Lock> ownedLocks,
-            @Nullable FiberManager fiberManager,
+            @Nullable FiberManagerThreadImpl fiberManager,
             CountDownLatch finishedLatch,
             boolean abortOnException,
             @Nullable @Volatile Thread thread,
@@ -51,8 +51,8 @@ public interface ThreadLayout extends BasicObjectLayout {
     boolean isThread(ObjectType objectType);
     boolean isThread(DynamicObject object);
 
-    FiberManager getFiberManager(DynamicObject object);
-    void setFiberManagerUnsafe(DynamicObject object, FiberManager value);
+    FiberManagerThreadImpl getFiberManager(DynamicObject object);
+    void setFiberManagerUnsafe(DynamicObject object, FiberManagerThreadImpl value);
 
     CountDownLatch getFinishedLatch(DynamicObject object);
     void setFinishedLatch(DynamicObject object, CountDownLatch value);

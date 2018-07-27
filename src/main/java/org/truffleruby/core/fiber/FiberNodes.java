@@ -70,7 +70,7 @@ public abstract class FiberNodes {
                 throw new RaiseException(getContext(), coreExceptions().fiberError("fiber called across threads", this));
             }
 
-            final FiberManager fiberManager = Layouts.THREAD.getFiberManager(currentThread);
+            final FiberManagerThreadImpl fiberManager = Layouts.THREAD.getFiberManager(currentThread);
             return singleValue(frame, fiberManager.transferControlTo(currentFiber, fiber, operation, args));
         }
 
@@ -115,7 +115,7 @@ public abstract class FiberNodes {
             Layouts.FIBER.setTransferred(fiber, true);
 
             final DynamicObject currentThread = getCurrentRubyThreadNode.executeGetRubyThread(frame);
-            final FiberManager fiberManager = Layouts.THREAD.getFiberManager(currentThread);
+            final FiberManagerThreadImpl fiberManager = Layouts.THREAD.getFiberManager(currentThread);
             final DynamicObject currentFiber = fiberManager.getCurrentFiber();
 
             if (sameFiberProfile.profile(currentFiber == fiber)) {
@@ -140,7 +140,7 @@ public abstract class FiberNodes {
                 @Cached("createBinaryProfile()") ConditionProfile transferredProfile) {
 
             final DynamicObject parentFiber = Layouts.FIBER.getLastResumedByFiber(fiber);
-            final FiberManager fiberToResumeManager = Layouts.THREAD.getFiberManager(Layouts.FIBER.getRubyThread(fiber));
+            final FiberManagerThreadImpl fiberToResumeManager = Layouts.THREAD.getFiberManager(Layouts.FIBER.getRubyThread(fiber));
 
             if (doubleResumeProfile.profile(parentFiber != null || fiber == fiberToResumeManager.getRootFiber())) {
                 throw new RaiseException(getContext(), coreExceptions().fiberError("double resume", this));
@@ -151,7 +151,7 @@ public abstract class FiberNodes {
             }
 
             final DynamicObject currentThread = getCurrentRubyThreadNode.executeGetRubyThread(frame);
-            final FiberManager fiberManager = Layouts.THREAD.getFiberManager(currentThread);
+            final FiberManagerThreadImpl fiberManager = Layouts.THREAD.getFiberManager(currentThread);
             final DynamicObject currentFiber = fiberManager.getCurrentFiber();
 
             return fiberTransferNode.executeTransferControlTo(frame, currentThread, currentFiber, fiber, FiberOperation.RESUME, args);
@@ -170,7 +170,7 @@ public abstract class FiberNodes {
                 @Cached("create()") BranchProfile errorProfile) {
 
             final DynamicObject currentThread = getCurrentRubyThreadNode.executeGetRubyThread(frame);
-            final FiberManager fiberManager = Layouts.THREAD.getFiberManager(currentThread);
+            final FiberManagerThreadImpl fiberManager = Layouts.THREAD.getFiberManager(currentThread);
             final DynamicObject currentFiber = fiberManager.getCurrentFiber();
 
             final DynamicObject fiberYieldedTo = fiberManager.getReturnFiber(currentFiber, this, errorProfile);

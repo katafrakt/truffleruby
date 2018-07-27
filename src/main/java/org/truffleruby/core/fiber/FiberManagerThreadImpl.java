@@ -42,7 +42,7 @@ import com.oracle.truffle.api.source.SourceSection;
 /**
  * Manages Ruby {@code Fiber} objects for a given Ruby thread.
  */
-public class FiberManager {
+public class FiberManagerThreadImpl {
 
     public static final String NAME_PREFIX = "Ruby Fiber";
 
@@ -54,7 +54,7 @@ public class FiberManager {
     private final Map<Thread, DynamicObject> rubyFiberForeignMap = new ConcurrentHashMap<>();
     private final ThreadLocal<DynamicObject> rubyFiber = ThreadLocal.withInitial(() -> rubyFiberForeignMap.get(Thread.currentThread()));
 
-    public FiberManager(RubyContext context, DynamicObject rubyThread) {
+    public FiberManagerThreadImpl(RubyContext context, DynamicObject rubyThread) {
         this.context = context;
         this.rootFiber = createRootFiber(context, rubyThread);
         this.currentFiber = rootFiber;

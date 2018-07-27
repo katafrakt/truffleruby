@@ -19,7 +19,7 @@ import org.truffleruby.Layouts;
 import org.truffleruby.RubyLanguage;
 import org.truffleruby.RubyContext;
 import org.truffleruby.core.InterruptMode;
-import org.truffleruby.core.fiber.FiberManager;
+import org.truffleruby.core.fiber.FiberManagerThreadImpl;
 import org.truffleruby.core.string.StringUtils;
 import org.truffleruby.language.NotProvided;
 import org.truffleruby.language.RubyGuards;
@@ -161,7 +161,7 @@ public class ThreadManager {
 
     private void setFiberManager(DynamicObject thread) {
         // Because it is cyclic
-        Layouts.THREAD.setFiberManagerUnsafe(thread, new FiberManager(context, thread));
+        Layouts.THREAD.setFiberManagerUnsafe(thread, new FiberManagerThreadImpl(context, thread));
     }
 
     private Object[] packThreadFields(DynamicObject currentGroup, String info) {
@@ -234,7 +234,7 @@ public class ThreadManager {
         thread.setName(NAME_PREFIX + " id=" + thread.getId() + " from " + info);
         thread.start();
 
-        FiberManager.waitForInitialization(context, Layouts.THREAD.getFiberManager(rubyThread).getRootFiber(), currentNode);
+        FiberManagerThreadImpl.waitForInitialization(context, Layouts.THREAD.getFiberManager(rubyThread).getRootFiber(), currentNode);
     }
 
     private void threadMain(DynamicObject thread, Node currentNode, Supplier<Object> task) {
@@ -288,7 +288,7 @@ public class ThreadManager {
         Layouts.THREAD.setThread(thread, javaThread);
         registerThread(thread);
 
-        final FiberManager fiberManager = Layouts.THREAD.getFiberManager(thread);
+        final FiberManagerThreadImpl fiberManager = Layouts.THREAD.getFiberManager(thread);
         fiberManager.start(fiberManager.getRootFiber(), javaThread);
     }
 
@@ -296,7 +296,7 @@ public class ThreadManager {
         // First mark as dead for Thread#status
         Layouts.THREAD.setStatus(thread, ThreadStatus.DEAD);
 
-        final FiberManager fiberManager = Layouts.THREAD.getFiberManager(thread);
+        final FiberManagerThreadImpl fiberManager = Layouts.THREAD.getFiberManager(thread);
         fiberManager.shutdown(javaThread);
 
         unregisterThread(thread);
@@ -522,7 +522,7 @@ public class ThreadManager {
                     rootThread, currentThread));
         }
 
-        final FiberManager fiberManager = Layouts.THREAD.getFiberManager(rootThread);
+        final FiberManagerThreadImpl fiberManager = Layouts.THREAD.getFiberManager(rootThread);
 
         if (fiberManager.getRubyFiberFromCurrentJavaThread() != fiberManager.getRootFiber()) {
             throw new UnsupportedOperationException("ThreadManager.shutdown() must be called on the root Fiber of the main Thread");
@@ -570,7 +570,7 @@ public class ThreadManager {
             try {
                 context.getSafepointManager().pauseAllThreadsAndExecute(null, false, (thread, currentNode) -> {
                     if (Thread.currentThread() != initiatingJavaThread) {
-                        final FiberManager fiberManager = Layouts.THREAD.getFiberManager(thread);
+                        final FiberManagerThreadImpl fiberManager = Layouts.THREAD.getFiberManager(thread);
                         final DynamicObject fiber = fiberManager.getRubyFiberFromCurrentJavaThread();
 
                         if (fiberManager.getCurrentFiber() == fiber) {
@@ -625,7 +625,7 @@ public class ThreadManager {
 
             builder.append("\n");
 
-            final FiberManager fiberManager = Layouts.THREAD.getFiberManager(thread);
+            final FiberManagerThreadImpl fiberManager = Layouts.THREAD.getFiberManager(thread);
             builder.append(fiberManager.getFiberDebugInfo());
         }
 

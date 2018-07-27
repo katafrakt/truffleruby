@@ -30,7 +30,7 @@ public interface FiberLayout extends BasicObjectLayout {
                               DynamicObject catchTags,
                               CountDownLatch initializedLatch,
                               CountDownLatch finishedLatch,
-                              BlockingQueue<FiberManager.FiberMessage> messageQueue,
+                              BlockingQueue<FiberManagerThreadImpl.FiberMessage> messageQueue,
                               DynamicObject rubyThread,
                               @Volatile @Nullable DynamicObject lastResumedByFiber,
                               @Volatile boolean alive,
@@ -48,7 +48,7 @@ public interface FiberLayout extends BasicObjectLayout {
     CountDownLatch getFinishedLatch(DynamicObject object);
     void setFinishedLatch(DynamicObject object, CountDownLatch value);
 
-    BlockingQueue<FiberManager.FiberMessage> getMessageQueue(DynamicObject object);
+    BlockingQueue<FiberManagerThreadImpl.FiberMessage> getMessageQueue(DynamicObject object);
 
     DynamicObject getRubyThread(DynamicObject object);
 
