@@ -110,6 +110,14 @@ class TestTimeExtension < Test::Unit::TestCase # :nodoc:
     assert_equal(t, Time.__send__(method, s))
     assert_equal(s, t.iso8601)
 
+    t = Time.utc(1996, 12, 20, 0, 39, 57)
+    s = "1996-12-19T16:39:57-0800"
+    assert_equal(t, Time.__send__(method, s))
+
+    t = Time.utc(1996, 12, 20, 0, 39, 57)
+    s = "1996-12-19T16:39:57-08"
+    assert_equal(t, Time.__send__(method, s))
+
     t = Time.utc(1990, 12, 31, 23, 59, 60)
     s = "1990-12-31T23:59:60Z"
     assert_equal(t, Time.__send__(method, s))
